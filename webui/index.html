@@ -203,7 +203,7 @@
     const list = todos.filter((t) =>
       FILTER === "全部" || (FILTER === "未完成" ? !t.done : t.done));
     if (!todos.length) {
-      box.innerHTML = '<div class="empty">还没有任何待办。聊天里让 keke 记事，或在下面手动添加</div>';
+      box.innerHTML = '<div class="empty">还没有任何待办。聊天里让麦麦记事，或在下面手动添加</div>';
       return;
     }
     if (!list.length) { box.innerHTML = `<div class="empty">「${FILTER}」里暂时没有内容</div>`; return; }
