@@ -1,6 +1,6 @@
 # 备忘录待办 | Memo Todo
 
-> MaiBot 插件 · id: `local.memo-todo` · 版本 1.2.0 · 作者 pankai · MIT 协议（1.2.0：WebUI 专属待办页面）
+> MaiBot 插件 · id: `local.memo-todo` · 版本 1.2.0 · 作者 GLM-5.3(flash提供前端) · MIT 协议（1.2.0：WebUI 专属待办页面）
 
 ## 安装
 

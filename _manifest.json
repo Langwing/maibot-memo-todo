@@ -5,7 +5,7 @@
   "name": "备忘录待办 | Memo Todo",
   "description": "白名单用户可用自然语言让 AI 记待办，AI 会在合适的时机自然地提醒，直到完成为止；WebUI 专属页面维护待办。",
   "author": {
-    "name": "pankai",
+    "name": "GLM-5.3(flash提供前端)",
     "url": "https://github.com/Langwing"
   },
   "license": "MIT",
