@@ -1,0 +1,41 @@
+{
+  "manifest_version": 2,
+  "id": "local.memo-todo",
+  "version": "1.2.0",
+  "name": "备忘录待办 | Memo Todo",
+  "description": "白名单用户可用自然语言让 AI 记待办，AI 会在合适的时机自然地提醒，直到完成为止；WebUI 专属页面维护待办。",
+  "author": {
+    "name": "pankai",
+    "url": "https://github.com/Langwing"
+  },
+  "license": "MIT",
+  "urls": {
+    "repository": "https://github.com/Langwing/maibot-memo-todo"
+  },
+  "host_application": {
+    "min_version": "1.0.0",
+    "max_version": "1.99.99"
+  },
+  "sdk": {
+    "min_version": "2.0.0",
+    "max_version": "2.99.99"
+  },
+  "dependencies": [
+    {
+      "type": "python_package",
+      "name": "tomlkit",
+      "version_spec": ">=0.12.0"
+    }
+  ],
+  "capabilities": [
+    "chat.get_stream_by_user_id",
+    "chat.open_session",
+    "maisaka.proactive.trigger"
+  ],
+  "i18n": {
+    "default_locale": "zh-CN",
+    "supported_locales": [
+      "zh-CN"
+    ]
+  }
+}

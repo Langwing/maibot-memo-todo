@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>备忘录待办</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg-card: #232833;
+    --bg-input: #191d24;
+    --line: #3a4150;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --accent: #34d399;
+    --accent-soft: #6ee7b7;
+    --danger: #f87171;
+  }
+  body.maibot-page {
+    font-family: system-ui, "Microsoft YaHei", sans-serif;
+    margin: 0; padding: 14px 16px 40px; color: var(--text); background: transparent;
+  }
+  h1 { font-size: 18px; margin: 0; }
+  h2 { font-size: 13px; margin: 18px 0 8px; color: var(--accent-soft); font-weight: 600; }
+  .sub { color: var(--muted); font-size: 12px; }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  button { border: 1px solid var(--line); background: #333a47; color: #d1d5db;
+           border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+  button:hover { border-color: var(--accent); color: var(--accent-soft); }
+  button.danger:hover { border-color: var(--danger); color: var(--danger); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #111827; font-weight: 600; }
+  button.primary:hover { background: var(--accent-soft); color: #111827; }
+  input { background: var(--bg-input); border: 1px solid var(--line); color: var(--text);
+          border-radius: 6px; padding: 3px 7px; font-size: 13px; }
+  input:focus { outline: none; border-color: var(--accent); }
+  .content { width: 200px; }
+  .note { width: 120px; }
+  .uid { width: 110px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .chip { border: 1px solid var(--line); background: var(--bg-card); color: var(--muted);
+          border-radius: 14px; padding: 3px 12px; font-size: 12px; cursor: pointer; user-select: none; }
+  .chip b { color: var(--text); font-weight: 600; margin-left: 2px; }
+  .chip.active { background: var(--accent); border-color: var(--accent); color: #111827; }
+  .chip.active b { color: #111827; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(560px, 1fr)); gap: 8px; }
+  .card { background: var(--bg-card); border: 1px solid var(--line); border-radius: 8px;
+          padding: 7px 10px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .card.done { opacity: .65; }
+  .card .id { font-size: 11px; color: var(--muted); }
+  .card .who { font-size: 12px; color: var(--accent-soft); min-width: 70px; }
+  .card .meta { font-size: 11px; color: var(--muted); }
+  .card .badge { font-size: 11px; color: var(--accent-soft); border: 1px solid #14532d;
+                 border-radius: 10px; padding: 0 8px; }
+  .card .spacer { flex: 1; }
+  .card button { padding: 2px 8px; }
+  input.datetime { color: var(--text); }
+
+  .addbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+            background: var(--bg-card); border: 1px dashed var(--line); border-radius: 8px; padding: 10px; }
+  .addbar label { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
+  .empty { color: var(--muted); font-size: 12px; padding: 6px 0; }
+  #msg { position: fixed; left: 50%; transform: translateX(-50%); bottom: 20px;
+         background: #111827; color: #fff; border: 1px solid var(--line); border-radius: 8px;
+         padding: 7px 16px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 9; }
+  #msg.show { opacity: .95; }
+  #msg.err { background: #7f1d1d; }
+</style>
+</head>
+<body class="maibot-page">
+  <div class="toolbar">
+    <div>
+      <h1>📝 备忘录待办 <span class="sub">手动维护待办，保存后立即生效</span></h1>
+    </div>
+    <button id="refresh">刷新</button>
+  </div>
+
+  <div class="chips" id="chips"></div>
+  <div id="sections"></div>
+
+  <h2>＋ 新增待办</h2>
+  <div class="addbar">
+    <input class="uid" id="add-uid" placeholder="QQ 号" maxlength="20">
+    <input class="content" id="add-content" placeholder="内容，如 买牛奶" maxlength="100">
+    <input class="note" id="add-note" placeholder="备注（可空）" maxlength="100">
+    <label>下次提醒 <input class="datetime" id="add-remind" type="datetime-local"></label>
+    <button class="primary" id="add-save">添加</button>
+  </div>
+
+  <div id="msg"></div>
+
+<script type="module">
+  const showFatal = (label, detail) => {
+    const el = document.querySelector("#sections");
+    if (el) el.innerHTML = `<div class="empty" style="color:#f87171">${label}: ${String(detail).replace(/[<>&]/g, "")}</div>`;
+  };
+  window.addEventListener("error", (ev) => showFatal("脚本错误", ev.message));
+  window.addEventListener("unhandledrejection", (ev) => showFatal("启动失败", ev.reason && (ev.reason.message || ev.reason)));
+
+  await maibot.ready;
+
+  const $ = (sel) => document.querySelector(sel);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
+    (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const pad = (n) => String(n).padStart(2, "0");
+  const ts2local = (ts) => {
+    if (!ts) return "";
+    const d = new Date(ts * 1000);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const local2ts = (v) => v ? Math.floor(new Date(v).getTime() / 1000) : 0;
+  const fmtTs = (ts) => {
+    if (!ts) return "-";
+    const d = new Date(ts * 1000);
+    return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  let STATE = null;
+  let FILTER = "未完成";
+
+  function toast(text, ok = true) {
+    const el = $("#msg");
+    el.textContent = text;
+    el.classList.toggle("err", !ok);
+    el.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => el.classList.remove("show"), 2200);
+  }
+  const fail = (e) => { toast((e && (e.message || e.error || String(e))) || "操作失败", false); console.error(e); };
+
+  function cardHTML(t) {
+    const who = t.user_nickname ? `${t.user_nickname}(${t.user_id})` : t.user_id;
+    return `<div class="card${t.done ? " done" : ""}" data-id="${esc(t.id)}">
+      <span class="id">${esc(t.id)}</span>
+      <span class="who">${esc(who)}</span>
+      <input class="content row-content" value="${esc(t.content)}" maxlength="100">
+      <input class="note row-note" value="${esc(t.note || "")}" placeholder="备注" maxlength="100">
+      ${t.done
+        ? `<span class="meta">完成于 ${fmtTs(t.done_at)}</span>`
+        : `<label class="meta">下次提醒 <input class="datetime row-remind" type="datetime-local" value="${ts2local(t.next_remind_at)}"></label>`}
+      <span class="meta">已提醒 ${t.remind_count} 次</span>
+      ${t.done ? "" : '<span class="badge">未完成</span>'}
+      <span class="spacer"></span>
+      <button class="row-save primary">存</button>
+      <button class="row-toggle">${t.done ? "恢复" : "完成"}</button>
+      <button class="danger row-del">删</button>
+    </div>`;
+  }
+
+  function bindCard(card) {
+    const id = card.dataset.id;
+    const item = STATE.todos.find((t) => t.id === id);
+    card.querySelector(".row-save").onclick = async () => {
+      const content = card.querySelector(".row-content").value.trim();
+      if (!content) { toast("内容不能为空", false); return; }
+      const remindEl = card.querySelector(".row-remind");
+      try {
+        await maibot.action("set_todo", {
+          todo_id: id, content,
+          note: card.querySelector(".row-note").value.trim(),
+          next_remind_at: remindEl ? local2ts(remindEl.value) : 0,
+          done: item ? item.done : false,
+        });
+        toast("已保存");
+        await refresh();
+      } catch (e) { fail(e); }
+    };
+    const toggle = card.querySelector(".row-toggle");
+    if (toggle) toggle.onclick = async () => {
+      try {
+        await maibot.action("set_todo", {
+          todo_id: id,
+          content: card.querySelector(".row-content").value.trim() || (item ? item.content : ""),
+          note: card.querySelector(".row-note").value.trim(),
+          next_remind_at: 0,
+          done: !(item && item.done),
+        });
+        toast(item && item.done ? "已恢复为未完成" : "已完成，不再提醒");
+        await refresh();
+      } catch (e) { fail(e); }
+    };
+    card.querySelector(".row-del").onclick = async () => {
+      try { await maibot.action("remove_todo", { todo_id: id }); toast("已删除"); await refresh(); }
+      catch (e) { fail(e); }
+    };
+  }
+
+  function renderChips(todos) {
+    const pending = todos.filter((t) => !t.done).length;
+    const done = todos.length - pending;
+    const cats = [["未完成", pending], ["已完成", done], ["全部", todos.length]];
+    $("#chips").innerHTML = cats.map(([c, n]) =>
+      `<span class="chip${FILTER === c ? " active" : ""}" data-cat="${c}">${c}<b>${n}</b></span>`).join("");
+    $("#chips").querySelectorAll(".chip").forEach((el) => {
+      el.onclick = () => { FILTER = el.dataset.cat; renderItems(); };
+    });
+  }
+
+  function renderItems() {
+    const todos = STATE.todos || [];
+    renderChips(todos);
+    const box = $("#sections");
+    const list = todos.filter((t) =>
+      FILTER === "全部" || (FILTER === "未完成" ? !t.done : t.done));
+    if (!todos.length) {
+      box.innerHTML = '<div class="empty">还没有任何待办。聊天里让 keke 记事，或在下面手动添加</div>';
+      return;
+    }
+    if (!list.length) { box.innerHTML = `<div class="empty">「${FILTER}」里暂时没有内容</div>`; return; }
+    box.innerHTML =
+      `<h2>${FILTER} <span class="sub">${list.length} 条</span></h2>
+       <div class="grid">${list.map(cardHTML).join("")}</div>`;
+    box.querySelectorAll(".card").forEach(bindCard);
+  }
+
+  async function refresh() {
+    try {
+      STATE = await maibot.query("state");
+      renderItems();
+    } catch (e) { fail(e); }
+  }
+
+  $("#refresh").onclick = refresh;
+
+  $("#add-save").onclick = async () => {
+    const uid = $("#add-uid").value.trim();
+    const content = $("#add-content").value.trim();
+    if (!uid) { toast("请填写 QQ 号", false); return; }
+    if (!content) { toast("请填写待办内容", false); return; }
+    try {
+      await maibot.action("add_todo", {
+        user_id: uid, content,
+        note: $("#add-note").value.trim(),
+        remind_at: local2ts($("#add-remind").value),
+      });
+      toast(`已添加：${content}`);
+      $("#add-uid").value = ""; $("#add-content").value = ""; $("#add-note").value = ""; $("#add-remind").value = "";
+      FILTER = "未完成";
+      await refresh();
+    } catch (e) { fail(e); }
+  };
+
+  await refresh();
+</script>
+</body>
+</html>

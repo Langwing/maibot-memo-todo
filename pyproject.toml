@@ -1,0 +1,11 @@
+[project]
+name = "maibot-memo-todo"
+version = "1.2.0"
+description = "备忘录待办插件：自然语言记事，AI 择机提醒，直到完成为止，WebUI 可维护待办清单。"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "maibot-plugin-sdk>=2.0.0",
+    "tomlkit>=0.12.0",
+]

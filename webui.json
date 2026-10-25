@@ -1,0 +1,45 @@
+{
+  "schema_version": 2,
+  "required_capabilities": ["custom_pages"],
+  "pages": [
+    {
+      "id": "memo",
+      "title": "备忘录待办",
+      "mode": "custom",
+      "entry": "webui/index.html",
+      "layout": "document",
+      "placement": "sidebar",
+      "queries": {
+        "state": {"api": "memo_page_state"}
+      },
+      "actions": {
+        "add_todo": {
+          "api": "memo_page_add_todo",
+          "parameters": {
+            "user_id": {"type": "string", "required": true, "max_length": 20},
+            "content": {"type": "string", "required": true, "max_length": 100},
+            "note": {"type": "string", "max_length": 100},
+            "remind_at": {"type": "number"}
+          }
+        },
+        "set_todo": {
+          "api": "memo_page_set_todo",
+          "parameters": {
+            "todo_id": {"type": "string", "required": true, "max_length": 20},
+            "content": {"type": "string", "required": true, "max_length": 100},
+            "note": {"type": "string", "max_length": 100},
+            "next_remind_at": {"type": "number"},
+            "done": {"type": "boolean"}
+          }
+        },
+        "remove_todo": {
+          "api": "memo_page_remove_todo",
+          "parameters": {
+            "todo_id": {"type": "string", "required": true, "max_length": 20}
+          },
+          "confirmation": "确定彻底删除这条待办吗？"
+        }
+      }
+    }
+  ]
+}
